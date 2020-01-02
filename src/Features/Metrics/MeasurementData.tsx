@@ -22,7 +22,8 @@ var MeasurementData = {
     const metric = measurements[0].metric;
     for(let i = 0; i< this.data.length; i++ ) {
       if(this.data[i][0].metric === metric) {
-        this.data[i] = this.data[i].concat(measurements);
+        if(this.data[i].length === 1) this.data[i] = measurements.concat(this.data[i]);
+        else this.data[i] = this.data[i].concat(measurements);
         return this.data[i].length;
       }
     }

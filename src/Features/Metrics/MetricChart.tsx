@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { actions } from './reducer';
-import { Provider, createClient, useQuery } from 'urql';
-import { IState } from '../../store';
-//import {QueryType} from './QueryQueue';
+import { Provider, createClient } from 'urql';
+import MetricList, {metricColors, metricNames} from './MetricList.js';
 import MeasurementData from './MeasurementData';
 
 const client = createClient({
@@ -18,70 +17,6 @@ export default () => {
     </Provider>
   );
 };
-const emptystrArr: string[] = [];
-const baseMetricArr = {
-  action: '',
-  target: '',
-  metrics: emptystrArr,
-  toggleMetric: function(metricName: string) {
-    let newarr = {...this};
-
-    if(newarr.hasMetric(metricName)) {
-      newarr.action = 'remove';
-      newarr.target = metricName;
-      newarr.metrics = newarr.metrics.filter(item => item !== metricName);
-    }
-    else {
-      newarr.action = 'add';
-      newarr.target = metricName;
-      newarr.metrics = newarr.metrics.concat(metricName);
-    }
-    return newarr;
-  },
-  hasMetric: function(metricName: string) {
-    return this.metrics.includes(metricName);
-  }
-}
-
-const MetricList = () => {
-  const [metricArr, setMetricArr] = useState(baseMetricArr);
-  const queryQueue = useSelector((state: IState) => state.metrics);
-  const dispatch = useDispatch();
-  
-  const toggleWaterTemp = () => {
-    let newarr = metricArr.toggleMetric('waterTemp');
-    if(newarr.action === 'add') {
-      dispatch(actions.metricsAddMetric(newarr.target));
-    }
-    else {
-      dispatch(actions.metricsRemoveMetric(newarr.target));
-    }
-    setMetricArr(newarr);
-  }
-
-  const toggleOilTemp = () => {
-    let newarr = metricArr.toggleMetric('oilTemp');
-    if(newarr.action === 'add') {
-      dispatch(actions.metricsAddMetric(newarr.target));
-    }
-    else {
-      dispatch(actions.metricsRemoveMetric(newarr.target));
-    }
-    setMetricArr(newarr);
-  }
-
-  return (
-    <div>
-      <button onClick={toggleWaterTemp}>
-        {metricArr.hasMetric('waterTemp') ? 'Remove waterTemp' : 'Add waterTemp'}
-      </button>
-      <button onClick={toggleOilTemp}>
-        {metricArr.hasMetric('oilTemp') ? 'Remove oilTemp' : 'Add oilTemp'}
-      </button>
-      { metricArr.metrics.length > 0 && queryQueue.queryArr.length > 0 ? <MetricQuery /> : null }
-    </div>
-    );
-}
 
 const MetricChart = (props: object) => {
   const [timer, setTimer] = useState(0);
@@ -135,7 +70,7 @@ const MetricChart = (props: object) => {
         }
         ctx.stroke();
         //draw lines
-        for(let i = 0; i < MeasurementData.data.length; i++) {
+        for(let i = 0, lineidx = 0; i < MeasurementData.data.length; i++) {
           let data = MeasurementData.data[i];
           if(data.length === 1)continue;
           //calculate range
@@ -146,13 +81,37 @@ const MetricChart = (props: object) => {
           let diff = max - min;
           let factor = diff === 0 ? 1 : 50 / diff;
           
-          ctx.strokeStyle = "#202020";
+          let metricIdx = metricNames.indexOf(data[0].metric);
+          if(metricIdx < 0 )continue;
+          ctx.beginPath();
+          ctx.strokeStyle = metricColors[metricIdx];
           for(let idx = idx0; idx < data.length; idx++) {
             let x = (idx - idx0) * wu;
             let y = height - 40 - Math.floor((data[idx].value - min) * factor + 25) * hu;
             x === 0 ? ctx.moveTo (x + 40, y) : ctx.lineTo (x + 40, y);
           }
           ctx.stroke();
+          //draw labels
+          let labelX = lineidx * 160 + 100;
+          ctx.strokeStyle = '#000';
+          roundedRect(ctx, labelX, 20, 140, 100, 10);
+
+          //show last data
+          let lastdata = data[data.length - 1];
+          let labelXcenter = labelX + 70;
+          ctx.beginPath();
+          ctx.fillStyle = metricColors[metricIdx];
+          ctx.font = '18px serif';
+          ctx.textBaseline = 'hanging';
+          ctx.textAlign = 'center';
+          ctx.fillText(lastdata.metric, labelXcenter, 30);
+          ctx.fillText(String(lastdata.value), labelXcenter, 50);          
+          ctx.fillText(lastdata.unit, labelXcenter, 70);
+          ctx.font = '16px serif';
+          ctx.fillText('at ' + lastdata.at, labelXcenter, 90);
+          ctx.stroke();
+
+          lineidx++;
         }
       }
       
@@ -169,36 +128,16 @@ const MetricChart = (props: object) => {
   );
 };
 
-const MetricQuery = () => {
-  const dispatch = useDispatch();
-  const queryQueue = useSelector((state: IState) => state.metrics);
-
-  const query = queryQueue.getQueryString();
-  //console.log('query string: ', query);
-  //console.log('queryQueue changed', queryQueue.queryArr.length);
-  
-  const [result] = useQuery({
-    query,
-    requestPolicy: 'network-only'
-  });
-  const { data, error } = result;  
-  
-  useEffect(() => {    
-    if (error) {
-      dispatch(actions.metricsApiErrorReceived({ error: error.message }));
-      return;
-    }
-    if (!data) return;
-    let received;
-    if('getLastKnownMeasurement' in data) {
-      received = [data['getLastKnownMeasurement']];
-    }
-    else {
-      received = data['getMeasurements'];
-    }
-    dispatch(actions.metricsDataReceived(received));
-  }, [dispatch, data, error]);
-
-  return <></>;
+function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number){
+  ctx.beginPath();
+  ctx.moveTo(x,y+radius);
+  ctx.lineTo(x,y+height-radius);
+  ctx.quadraticCurveTo(x,y+height,x+radius,y+height);
+  ctx.lineTo(x+width-radius,y+height);
+  ctx.quadraticCurveTo(x+width,y+height,x+width,y+height-radius);
+  ctx.lineTo(x+width,y+radius);
+  ctx.quadraticCurveTo(x+width,y,x+width-radius,y);
+  ctx.lineTo(x+radius,y);
+  ctx.quadraticCurveTo(x,y,x,y+radius);
+  ctx.stroke();
 }
-

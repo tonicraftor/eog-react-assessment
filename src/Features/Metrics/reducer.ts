@@ -50,8 +50,8 @@ const slice = createSlice({
         newstate = newstate.enqueue({
           metricName: metric,
           queryType: QueryType.QUERY_ALL,
-          after: action.payload[0].at - 100000,
-          before: action.payload[0].at
+          after: action.payload[0].at - 130000,
+          before: action.payload[0].at - 1300
         });
       }
       return newstate
