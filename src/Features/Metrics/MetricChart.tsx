@@ -25,6 +25,8 @@ const MetricChart = (props: object) => {
   
   let canvas: HTMLCanvasElement | null = null;
 
+  const onMouseMove = () => {}
+
   useEffect(() => {
     setTimeout(() => {setTimer( timer + 1)}, 1000);
     if(canvas) {
@@ -93,7 +95,6 @@ const MetricChart = (props: object) => {
           ctx.stroke();
           //draw labels
           let labelX = lineidx * 160 + 100;
-          ctx.strokeStyle = '#000';
           roundedRect(ctx, labelX, 20, 140, 100, 10);
 
           //show last data
@@ -107,23 +108,34 @@ const MetricChart = (props: object) => {
           ctx.fillText(lastdata.metric, labelXcenter, 30);
           ctx.fillText(String(lastdata.value), labelXcenter, 50);          
           ctx.fillText(lastdata.unit, labelXcenter, 70);
-          ctx.font = '16px serif';
-          ctx.fillText('at ' + lastdata.at, labelXcenter, 90);
+          ctx.font = '14px serif';
+          let timestr = new Date(lastdata.at).toLocaleString();
+          ctx.fillText(timestr, labelXcenter, 90);
           ctx.stroke();
 
+          //show time calib
+          if(lineidx === 0) {
+            ctx.beginPath();
+            ctx.fillStyle = '#000';
+            ctx.font = '14px serif';
+            for(let idx = idx0 + 9; idx < data.length; idx += 10) {
+              let x = (idx - idx0 + 1) * wu + 40;
+              let y = height - 30;
+              let timestr = new Date(data[idx].at).toLocaleTimeString();
+              ctx.fillText(timestr, x, y);
+            }
+            ctx.stroke();
+          }
           lineidx++;
         }
       }
-      
-      //console.log('redraw chart:', timer);
-      //console.log('MeasurementData', MeasurementData.data);
     }
     dispatch(actions.metricsQueryLast());
   }, [canvas, dispatch, timer]);
 
   return (
   <div style={{width: '100%', height: 600}}>
-    <canvas ref={c => canvas = c} style={{ borderWidth: 1, borderColor: '#000', borderStyle: 'solid'}}/>
+    <canvas ref={c => canvas = c} onMouseMove={onMouseMove} style={{ borderWidth: 1, borderColor: '#000', borderStyle: 'solid'}}/>
   </div>
   );
 };

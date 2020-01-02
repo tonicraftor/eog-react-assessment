@@ -116,9 +116,11 @@ const MetricList = () => {
     handleClose();
   }
   
-  let metriclist = metricNames.map((item,index) => {
-    return <MenuItem onClick={() => toggleMetric(index)} key={index} style={{color:metricColors[index]}}>{item}</MenuItem>
-  })
+  let metriclist = metricNames.map((item,index) => (
+    <MenuItem onClick={() => toggleMetric(index)} key={index} style={{color:metricColors[index]}}>
+      {(metricArr.hasMetric(item) ? 'Remove ' : 'Add ') + item}
+    </MenuItem>
+  ))
 
   return (
     <div style={{textAlign:'center', margin:10}}>
