@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef, ReactElement } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { actions } from './reducer';
 import { useQuery } from 'urql';
-import { IState } from '../../store';
 import Button from '@material-ui/core/Button';
 import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
@@ -52,14 +51,17 @@ const MetricQuery = () => {
       return;
     }
     if (!data) return;
-    let received;
+    let dataArr;
     if('getLastKnownMeasurement' in data) {
-      received = [data['getLastKnownMeasurement']];
+      dataArr = [data['getLastKnownMeasurement']];
     }
     else {
-      received = data['getMeasurements'];
+      dataArr = data['getMeasurements'];
     }
-    dispatch(actions.metricsDataReceived(received));
+    let values = dataArr.map(item => item.value);
+    let max = Math.max(...values);
+    let min = Math.min(...values);
+    dispatch(actions.metricsDataReceived({dataArr, min, max}));
   }, [dispatch, data, error]);
 
   return <></>;

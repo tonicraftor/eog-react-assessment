@@ -18,14 +18,84 @@ export default () => {
   );
 };
 
+const EventWrapper = () => {
+  const [data, setData] = useState({
+    metric: '',
+    value: 0,
+    unit: '',
+    at: ''
+  });
+
+  let dataTag: HTMLDivElement | null = null;
+
+  const onMouseMove = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {    
+    //console.log('(x,y)', [event.nativeEvent.offsetX, event.nativeEvent.offsetY]);
+    //calculate coordination
+    if(dataTag && dataTag.parentElement) {
+      let width = dataTag.parentElement.clientWidth;
+      let height = dataTag.parentElement.clientHeight;
+      let h = height - 80;
+      let w = width - 80;
+      let hu = Math.floor(h/100);
+      let wu = Math.floor(w/100);
+      let coordx = Math.round((event.nativeEvent.offsetX - 40) / wu);
+      let coordy = Math.round((height - event.nativeEvent.offsetY - 40) / hu);
+      if(coordx < 0 || coordx > 100 || coordy < 0 || coordy > 100)return;
+      //console.log('(x,y)', [coordx, coordy]);
+      for(let i = 0; i < MeasurementData.data.length; i++) {
+        let dataCoords = MeasurementData.data[i].coordY;
+        if(!dataCoords || coordx >= dataCoords.length)continue;
+        if(dataCoords[coordx] === coordy) {
+          let data = MeasurementData.data[i].dataArr[coordx];
+          //show value 
+            dataTag.style.display = 'block';
+            dataTag.style.left = String(event.nativeEvent.offsetX)+'px';
+            dataTag.style.top = String(event.nativeEvent.offsetY - 100)+'px';
+            setData({
+              metric: data.metric,
+              value: data.value,
+              unit: data.unit,
+              at: new Date(data.at).toLocaleTimeString()
+            });
+          return;
+        }
+      }
+      dataTag.style.display = 'none';
+    }
+  }
+
+  return (
+    <div onMouseMove={onMouseMove} style={{position:'absolute', left: 0, top: 0, width: '100%', height: '100%', zIndex: 1}} >
+      <div style={{
+        position: 'absolute',
+        display: 'none',
+        top: 0,
+        left: 0,
+        width: 140,
+        height: 100,
+        background: 'rgba(255,208,183,0.7)',
+        fontSize: '14px',
+        border:'1px dashed #222222',
+        textAlign: 'center'
+      }}
+        ref={d => dataTag = d}
+      >
+        <div>{data.metric}</div>
+        <div>{data.value}</div>
+        <div>{data.unit}</div>
+        <div>{data.at}</div>
+      </div>
+    </div>
+  )
+}
+
 const MetricChart = (props: object) => {
   const [timer, setTimer] = useState(0);
-  
   const dispatch = useDispatch();
   
   let canvas: HTMLCanvasElement | null = null;
 
-  const onMouseMove = () => {}
+  
 
   useEffect(() => {
     setTimeout(() => {setTimer( timer + 1)}, 1000);
@@ -44,7 +114,7 @@ const MetricChart = (props: object) => {
       if(ctx) {
         ctx.clearRect(0, 0, width, height);
         let h = height - 80;
-        let w = width -80;
+        let w = width - 80;
         let hu = Math.floor(h/100);
         let wu = Math.floor(w/100);
         //draw axis
@@ -73,13 +143,13 @@ const MetricChart = (props: object) => {
         ctx.stroke();
         //draw lines
         for(let i = 0, lineidx = 0; i < MeasurementData.data.length; i++) {
-          let data = MeasurementData.data[i];
+          let data = MeasurementData.data[i].dataArr;
           if(data.length === 1)continue;
           //calculate range
           let idx0 = data.length <= 100 ? 0 : data.length - 100;
-          let values = data.map(item => item.value);
-          let max = Math.max(...values);
-          let min = Math.min(...values);
+          data = data.slice(idx0);
+          let min = MeasurementData.data[i].min;
+          let max = MeasurementData.data[i].max;
           let diff = max - min;
           let factor = diff === 0 ? 1 : 50 / diff;
           
@@ -87,12 +157,17 @@ const MetricChart = (props: object) => {
           if(metricIdx < 0 )continue;
           ctx.beginPath();
           ctx.strokeStyle = metricColors[metricIdx];
-          for(let idx = idx0; idx < data.length; idx++) {
-            let x = (idx - idx0) * wu;
-            let y = height - 40 - Math.floor((data[idx].value - min) * factor + 25) * hu;
+          let dataCoords = new Array(data.length);
+          for(let idx = 0; idx < data.length; idx++) {
+            let x = idx * wu;
+            let y = Math.floor((data[idx].value - min) * factor + 25);
+            dataCoords[idx] = y;
+            y = height - 40 - y * hu;
             x === 0 ? ctx.moveTo (x + 40, y) : ctx.lineTo (x + 40, y);
           }
+          MeasurementData.data[i].coordY = dataCoords;
           ctx.stroke();
+
           //draw labels
           let labelX = lineidx * 160 + 100;
           roundedRect(ctx, labelX, 20, 140, 100, 10);
@@ -118,8 +193,8 @@ const MetricChart = (props: object) => {
             ctx.beginPath();
             ctx.fillStyle = '#000';
             ctx.font = '14px serif';
-            for(let idx = idx0 + 9; idx < data.length; idx += 10) {
-              let x = (idx - idx0 + 1) * wu + 40;
+            for(let idx = 9; idx < data.length; idx += 10) {
+              let x = (idx + 1) * wu + 40;
               let y = height - 30;
               let timestr = new Date(data[idx].at).toLocaleTimeString();
               ctx.fillText(timestr, x, y);
@@ -134,8 +209,9 @@ const MetricChart = (props: object) => {
   }, [canvas, dispatch, timer]);
 
   return (
-  <div style={{width: '100%', height: 600}}>
-    <canvas ref={c => canvas = c} onMouseMove={onMouseMove} style={{ borderWidth: 1, borderColor: '#000', borderStyle: 'solid'}}/>
+  <div style={{width: '100%', height: 600, position: 'relative'}}>
+    <canvas ref={c => canvas = c} style={{ borderWidth: 1, borderColor: '#000', borderStyle: 'solid'}}/>
+    <EventWrapper />
   </div>
   );
 };

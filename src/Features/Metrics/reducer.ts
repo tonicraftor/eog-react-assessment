@@ -38,10 +38,10 @@ const slice = createSlice({
       return newqq;
     },
     metricsDataReceived: (state, action: PayloadAction<Measurements>) => {
-      if( action.payload.length === 0) return state.dequeueFirst();
+      if( action.payload.dataArr.length === 0) return state.dequeueFirst();
       if(!state.queryArr.length) return state;
       //console.log('data received', action.payload);
-      const metric = action.payload[0].metric;
+      const metric = action.payload.dataArr[0].metric;
       let querytype = state.queryArr[0].queryType;
       let newstate = state.dequeue(metric);
       
@@ -50,8 +50,8 @@ const slice = createSlice({
         newstate = newstate.enqueue({
           metricName: metric,
           queryType: QueryType.QUERY_ALL,
-          after: action.payload[0].at - 130000,
-          before: action.payload[0].at - 1300
+          after: action.payload.dataArr[0].at - 130000,
+          before: action.payload.dataArr[0].at - 1300
         });
       }
       return newstate
