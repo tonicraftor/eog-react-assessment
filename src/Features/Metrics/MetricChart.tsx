@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { actions } from './reducer';
 import { Provider, createClient } from 'urql';
-import MetricList, {metricColors, metricNames} from './MetricList.js';
+import MetricList, {metricColors, metricNames} from './MetricList';
 import MeasurementData from './MeasurementData';
 
 const client = createClient({
