@@ -1,12 +1,12 @@
-
+export type Measurement = {
+  metric: string;
+  at: number;
+  value: number;
+  unit: string;
+}
 
 export type Measurements = {
-  dataArr: {
-    metric: string;
-    at: number;
-    value: number;
-    unit: string;
-  }[],
+  dataArr: Measurement[],
   min: number,
   max: number,
   coordY: number[]
